@@ -7,14 +7,14 @@ start:
     mov esp, stack_top
 
     call check_multiboot
-    call check_cpuid
+    call check_cpu_id
     call check_long_mode
 
     call setup_page_tables
     call enable_paging
 
     lgdt [gdt64.pointer]
-    kmp gdt64.code_segment:long_mode_start
+    jmp gdt64.code_segment:long_mode_start
 
 
 
@@ -27,7 +27,7 @@ check_multiboot:
     mov al, "M"
     jmp error
 
-check cpu_id:
+check_cpu_id:
     pushfd
     pop eax
     mov ecx, eax
@@ -64,18 +64,19 @@ check_long_mode:
 
 setup_page_tables:
     mov eax, page_table_l3
-    or eax, ob11 ; present, writeable
+    or eax, 0b11 ; present, writeable
     mov [page_table_l4], eax
 
     mov eax, page_table_l2
-    or eax, ob11 ; present, writeable
-    mov [page_table_3], eax
+    or eax, 0b11 ; present, writeable
+    mov [page_table_l3], eax
 
     mov ecx, 0 ; counter
 .loop:
 
     mov eax, 0x200000 ; 2MiB
-    mul ecxor eax 0b10000011 ; present, writeable, huge page
+    mul ecx
+    or eax, 0b10000011 ; present, writeable, huge page
     mov [page_table_l2 + ecx * 8], eax
 
     inc ecx ; increment counter
@@ -91,7 +92,7 @@ enable_paging:
 
     ; enable PAE
     mov eax, cr4
-    or eax 1 << 5
+    or eax, 1 << 5
     mov cr4, eax
 
     ; enable long mode
@@ -113,6 +114,7 @@ error:
     mov dword[0xb8004], 0x4f3a4f52
     mov dword[0xb8008], 0x4f204f20
     mov byte [0xb800a], al
+    hlt
 
 section .bss
 align 4096
@@ -130,7 +132,7 @@ stack_top:
 section .rodata
 gdt64:
     dq 0 ;  zero entry
-.code segment: equ $ - gdt64
+.code_segment: equ $ - gdt64
     dq (1 << 43) | (1 << 44) | (1 << 47) | (1 << 53) ;  code segment
 .pointer:
     dw $ - gdt64 - 1
