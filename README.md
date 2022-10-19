@@ -1,6 +1,7 @@
 # mynewos
 Building the OS requires some commands.
 
+Build: docker build buildenv -t myos-buildenv
 # Recommended - Windows (CMD PROMPT)
 docker run --rm -it -v %cd%:/root/env myos-buildenv
 
